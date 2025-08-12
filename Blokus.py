@@ -1,10 +1,22 @@
 import pygame
-
-BOARD_HEIGHT = 20
-BOARD_LENGTH = 20
+SMALL_MARGIN = 1
+MID_MARGIN = 5
+LARGE_MARGIN = 10
+BOARD_NUM_x = 20
+BOARD_NUM_y = 20
 BLOCK_SIZE = 20 # pixel
-WINDOW_HEIGHT = 400
-WINDOW_WIDTH = 400
+BOARD_HEIGHT = (BLOCK_SIZE*BOARD_NUM_y)
+BOARD_WIDTH = (BLOCK_SIZE*BOARD_NUM_x)
+PLAYER_HEIGHT = 200
+PLAYER_WIDTH = BOARD_WIDTH
+BOARD_x = (LARGE_MARGIN+PLAYER_HEIGHT)
+BOARD_xend = (BOARD_x+BOARD_WIDTH)
+BOARD_y = (LARGE_MARGIN+PLAYER_HEIGHT)
+BOARD_yend = (BOARD_y+BOARD_HEIGHT)
+WINDOW_HEIGHT = (LARGE_MARGIN+PLAYER_HEIGHT+BOARD_HEIGHT+PLAYER_HEIGHT+LARGE_MARGIN)
+WINDOW_WIDTH = (LARGE_MARGIN+PLAYER_HEIGHT+BOARD_WIDTH+PLAYER_HEIGHT+LARGE_MARGIN)
+
+
 COLORS = {
     'BLACK':    (0,0,0),
     'WHITE':    (200,200,200),
@@ -76,10 +88,10 @@ class Blokus:
 
     def createPlayers(self):
         players = []
-        players.append(Player('RED'))
-        players.append(Player('GREEN'))
-        players.append(Player('BLUE'))
-        players.append(Player('YELLOW'))
+        players.append(Player(COLORS['RED']))
+        players.append(Player(COLORS['GREEN']))
+        players.append(Player(COLORS['BLUE']))
+        players.append(Player(COLORS['YELLOW']))
         return players
     
 if __name__ == '__main__':
@@ -87,10 +99,33 @@ if __name__ == '__main__':
     pygame.init()
     window = pygame.display.set_mode((WINDOW_WIDTH,WINDOW_HEIGHT))
     
-    for x in range(0, WINDOW_WIDTH, BLOCK_SIZE):
-        for y in range(0, WINDOW_HEIGHT, BLOCK_SIZE):
+    # draw players regions
+    # top player
+    tp_x = LARGE_MARGIN+PLAYER_HEIGHT
+    ty_y = MID_MARGIN
+    rect = pygame.Rect(tp_x, ty_y, PLAYER_WIDTH, PLAYER_HEIGHT)
+    pygame.draw.rect(window, COLORS["RED"], rect, 1)
+    # left player
+    lp_x = MID_MARGIN
+    lp_y = LARGE_MARGIN+PLAYER_HEIGHT
+    rect = pygame.Rect(lp_x, lp_y, PLAYER_HEIGHT, PLAYER_WIDTH)
+    pygame.draw.rect(window, COLORS["GREEN"], rect, 1)
+    # right player
+    rp_x = WINDOW_WIDTH-PLAYER_HEIGHT-MID_MARGIN
+    rp_y = LARGE_MARGIN+PLAYER_HEIGHT
+    rect = pygame.Rect(rp_x, rp_y, PLAYER_HEIGHT, PLAYER_WIDTH)
+    pygame.draw.rect(window, COLORS["BLUE"], rect, 1)
+    # bottom player
+    bp_x = LARGE_MARGIN+PLAYER_HEIGHT
+    bp_y = WINDOW_HEIGHT-PLAYER_HEIGHT-MID_MARGIN
+    rect = pygame.Rect(bp_x, bp_y, PLAYER_WIDTH, PLAYER_HEIGHT)
+    pygame.draw.rect(window, COLORS["YELLOW"], rect, 1)
+    
+    # draw play Board
+    for x in range(LARGE_MARGIN+PLAYER_HEIGHT, WINDOW_WIDTH-PLAYER_HEIGHT-LARGE_MARGIN, BLOCK_SIZE):
+        for y in range(LARGE_MARGIN+PLAYER_HEIGHT, WINDOW_HEIGHT-PLAYER_HEIGHT-LARGE_MARGIN, BLOCK_SIZE):
             rect = pygame.Rect(x, y, BLOCK_SIZE, BLOCK_SIZE)
-            pygame.draw.rect(window, WHITE, rect, 1)
+            pygame.draw.rect(window, COLORS["WHITE"], rect, 1)
     
     while True:
         event = pygame.event.poll()
