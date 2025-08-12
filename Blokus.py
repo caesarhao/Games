@@ -2,8 +2,12 @@ import pygame
 
 BOARD_HEIGHT = 20
 BOARD_LENGTH = 20
-
+BLOCK_SIZE = 20 # pixel
+WINDOW_HEIGHT = 400
+WINDOW_WIDTH = 400
 COLORS = {
+    'BLACK':    (0,0,0),
+    'WHITE':    (200,200,200),
     'RED':      (255,0,0),
     'GREEN':    (0,255,0),
     'BLUE':     (0,0,255),
@@ -81,7 +85,13 @@ class Blokus:
 if __name__ == '__main__':
     bl = Blokus()
     pygame.init()
-    window = pygame.display.set_mode((640,480))
+    window = pygame.display.set_mode((WINDOW_WIDTH,WINDOW_HEIGHT))
+    
+    for x in range(0, WINDOW_WIDTH, BLOCK_SIZE):
+        for y in range(0, WINDOW_HEIGHT, BLOCK_SIZE):
+            rect = pygame.Rect(x, y, BLOCK_SIZE, BLOCK_SIZE)
+            pygame.draw.rect(window, WHITE, rect, 1)
+    
     while True:
         event = pygame.event.poll()
         if event.type == pygame.QUIT:
