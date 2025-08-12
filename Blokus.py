@@ -19,6 +19,23 @@ WINDOW_HEIGHT = (LARGE_MARGIN+PLAYER_HEIGHT+LARGE_MARGIN*2+BOARD_HEIGHT+LARGE_MA
 WINDOW_WIDTH = (LARGE_MARGIN+PLAYER_HEIGHT+LARGE_MARGIN*2+BOARD_WIDTH+LARGE_MARGIN*2+PLAYER_HEIGHT+LARGE_MARGIN)
 
 
+tp_x = BOARD_x - LARGE_MARGIN
+tp_y = LARGE_MARGIN
+lp_x = LARGE_MARGIN
+lp_y = BOARD_y - LARGE_MARGIN
+bp_x = BOARD_x - LARGE_MARGIN
+bp_y = BOARD_yend + LARGE_MARGIN*2
+rp_x = BOARD_xend + LARGE_MARGIN*2
+rp_y = BOARD_y - LARGE_MARGIN
+
+
+PlayerPositions = {
+    'Top':    (tp_x, tp_y),
+    'Left':    (lp_x, lp_y),
+    'Bottom':    (bp_x, bp_y),
+    'Right':    (rp_x, rp_y)
+}
+    
 COLORS = {
     'BLACK':    (0,0,0),
     'WHITE':    (200,200,200),
@@ -74,8 +91,11 @@ class Piece:
         pass
 
 class Player:
-    def __init__(self, color):
+    def __init__(self, color, position_name):
         self.color = color
+        self.position_name = position_name
+        self.position = PlayerPositions[self.position_name]
+        self.index = list(PlayerPositions.keys()).index(self.position_name)
         self.pieces = self.createPieces()
         self.remaining = range(len(self.pieces))
     def createPieces(self):
@@ -90,12 +110,32 @@ class Blokus:
 
     def createPlayers(self):
         players = []
-        players.append(Player(COLORS['RED']))
-        players.append(Player(COLORS['GREEN']))
-        players.append(Player(COLORS['BLUE']))
-        players.append(Player(COLORS['YELLOW']))
+        players.append(Player(COLORS['RED'], 'Top'))
+        players.append(Player(COLORS['GREEN'], 'Left'))
+        players.append(Player(COLORS['BLUE'], 'Bottom'))
+        players.append(Player(COLORS['YELLOW'], 'Right'))
         return players
+
+def drawInitPlayerRegion(surface, player):
+    player_x = player.position[0]
+    player_y = player.position[1]
     
+    if player.index%2 == 0:
+        real_pw = PLAYER_WIDTH
+        real_ph = PLAYER_HEIGHT
+    else:
+        real_pw = PLAYER_HEIGHT
+        real_ph = PLAYER_WIDTH
+    rect = pygame.Rect(player_x, player_y, real_pw, real_ph)
+    pygame.draw.rect(surface, player.color, rect, 1)
+    for x in range(player_x, player_x+real_pw, SMALL_PIECE_COMPART_SIZE):
+        for y in range(player_y, player_y+real_ph, SMALL_PIECE_COMPART_SIZE):
+            rect = pygame.Rect(x, y, SMALL_PIECE_COMPART_SIZE, SMALL_PIECE_COMPART_SIZE)
+            pygame.draw.rect(surface, player.color, rect, 1)
+    # start block
+    #rect = pygame.Rect(BOARD_x-BLOCK_SIZE, BOARD_y-BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE)
+    #pygame.draw.rect(surface, player.color, rect, 0)
+ 
 if __name__ == '__main__':
     bl = Blokus()
     pygame.init()
@@ -109,49 +149,24 @@ if __name__ == '__main__':
     
     # draw players regions
     # top player
-    tp_x = BOARD_x - LARGE_MARGIN
-    tp_y = LARGE_MARGIN
-    rect = pygame.Rect(tp_x, tp_y, PLAYER_WIDTH, PLAYER_HEIGHT)
-    pygame.draw.rect(window, COLORS["RED"], rect, 1)
-    for x in range(tp_x, tp_x+PLAYER_WIDTH, SMALL_PIECE_COMPART_SIZE):
-        for y in range(tp_y, tp_y+PLAYER_HEIGHT, SMALL_PIECE_COMPART_SIZE):
-            rect = pygame.Rect(x, y, SMALL_PIECE_COMPART_SIZE, SMALL_PIECE_COMPART_SIZE)
-            pygame.draw.rect(window, COLORS["RED"], rect, 1)
+    drawInitPlayerRegion(window, bl.players[0])
     rect = pygame.Rect(BOARD_x-BLOCK_SIZE, BOARD_y-BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE)
     pygame.draw.rect(window, COLORS["RED"], rect, 0)
     # left player
-    lp_x = LARGE_MARGIN
-    lp_y = BOARD_y - LARGE_MARGIN
-    rect = pygame.Rect(lp_x, lp_y, PLAYER_HEIGHT, PLAYER_WIDTH)
-    pygame.draw.rect(window, COLORS["GREEN"], rect, 1)
-    for x in range(lp_x, lp_x+PLAYER_HEIGHT, SMALL_PIECE_COMPART_SIZE):
-        for y in range(lp_y, lp_y+PLAYER_WIDTH, SMALL_PIECE_COMPART_SIZE):
-            rect = pygame.Rect(x, y, SMALL_PIECE_COMPART_SIZE, SMALL_PIECE_COMPART_SIZE)
-            pygame.draw.rect(window, COLORS["GREEN"], rect, 1)
+    drawInitPlayerRegion(window, bl.players[1])
     rect = pygame.Rect(BOARD_x-BLOCK_SIZE, BOARD_yend, BLOCK_SIZE, BLOCK_SIZE)
     pygame.draw.rect(window, COLORS["GREEN"], rect, 0)
-    # right player
-    rp_x = BOARD_xend + LARGE_MARGIN*2
-    rp_y = BOARD_y - LARGE_MARGIN
-    rect = pygame.Rect(rp_x, rp_y, PLAYER_HEIGHT, PLAYER_WIDTH)
-    pygame.draw.rect(window, COLORS["BLUE"], rect, 1)
-    for x in range(rp_x, lp_x+PLAYER_HEIGHT, SMALL_PIECE_COMPART_SIZE):
-        for y in range(rp_y, lp_y+PLAYER_WIDTH, SMALL_PIECE_COMPART_SIZE):
-            rect = pygame.Rect(x, y, SMALL_PIECE_COMPART_SIZE, SMALL_PIECE_COMPART_SIZE)
-            pygame.draw.rect(window, COLORS["BLUE"], rect, 1)
-    rect = pygame.Rect(BOARD_xend, BOARD_y-BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE)
-    pygame.draw.rect(window, COLORS["BLUE"], rect, 0)
+    
     # bottom player
-    bp_x = BOARD_x - LARGE_MARGIN
-    bp_y = BOARD_yend + LARGE_MARGIN*2
-    rect = pygame.Rect(bp_x, bp_y, PLAYER_WIDTH, PLAYER_HEIGHT)
-    pygame.draw.rect(window, COLORS["YELLOW"], rect, 1)
-    for x in range(bp_x, bp_x+PLAYER_WIDTH, SMALL_PIECE_COMPART_SIZE):
-        for y in range(bp_y, bp_y+PLAYER_HEIGHT, SMALL_PIECE_COMPART_SIZE):
-            rect = pygame.Rect(x, y, SMALL_PIECE_COMPART_SIZE, SMALL_PIECE_COMPART_SIZE)
-            pygame.draw.rect(window, COLORS["YELLOW"], rect, 1)
+    drawInitPlayerRegion(window, bl.players[2])
     rect = pygame.Rect(BOARD_xend, BOARD_yend, BLOCK_SIZE, BLOCK_SIZE)
+    pygame.draw.rect(window, COLORS["BLUE"], rect, 0)
+    
+    # right player
+    drawInitPlayerRegion(window, bl.players[3])
+    rect = pygame.Rect(BOARD_xend, BOARD_y-BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE)
     pygame.draw.rect(window, COLORS["YELLOW"], rect, 0)
+    
     
     while True:
         event = pygame.event.poll()
