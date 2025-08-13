@@ -182,7 +182,7 @@ class BlokusPyGame(Blokus):
             else:
                 h = PLAYER_WIDTH
                 w = PLAYER_HEIGHT
-            new_player_region_rect = pygame.Rect(self.players[i].position[0], self.players[i].position[1], h, w)
+            new_player_region_rect = pygame.Rect(self.players[i].position[0], self.players[i].position[1], w, h)
             self.playerRegionRects.append(new_player_region_rect)
         
         self.draftRegionSurfaces = []
@@ -192,6 +192,8 @@ class BlokusPyGame(Blokus):
             new_draft_region.fill(COLORS['BLACK'])
             self.drawDraftRegion(self.players[i])
             self.window.blit(new_draft_region, self.players[i].draftposition)
+            new_draft_region_rect = pygame.Rect(self.players[i].draftposition[0], self.players[i].draftposition[1], DRAFT_WIDTH, DRAFT_HEIGHT)
+            self.draftRegionRects.append(new_draft_region_rect)
         
         self.startBlockSurfaces = []
         for i in range(4):
@@ -275,13 +277,12 @@ class BlokusPyGame(Blokus):
         for i in range(4):
             if self.playerRegionRects[i].collidepoint(pos):
                 print("Player " + str(i) + " is selected.")
+            elif self.draftRegionRects[i].collidepoint(pos):
+                print("Player Draft " + str(i) + " is selected.")
     
     def run(self):
-        index = 0
-        self.drawPieceInDraft(self.players[0], index)
-        
+
         while True:
-            self.updateGUI()
             pygame.display.update()
             event = pygame.event.poll()
             if event.type == pygame.QUIT:
@@ -289,6 +290,7 @@ class BlokusPyGame(Blokus):
             elif event.type == pygame.MOUSEBUTTONUP:
                 pos = pygame.mouse.get_pos()
                 self.selectBlockIntoDraft(pos)
+                self.updateGUI()
         pygame.quit()
         sys.exit()
  
