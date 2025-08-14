@@ -103,7 +103,7 @@ PIECES_ARR = [
 
 class Piece:
     def __init__(self, piece_arr):
-        self.__piecearr = piece_arr.copy()
+        self.__piecearr = numpy.asarray(piece_arr)
         self.variants = []
         self.cal_variants()
         self.__idx = 0
@@ -119,8 +119,8 @@ class Piece:
         if self.__idx >= self.num_of_variants():
             self.__idx = 0
         return self.variants[self.__idx]
-    def current_dimension(self):
-        return [len(self.__piecearr), len(self.__piecearr[0])]
+    def shape(self):
+        return self.__piecearr.shape
     def num_of_blocks(self):
         return numpy.count_nonzero(self.__piecearr)
     def rot90Left(self, pa, k):
@@ -277,7 +277,7 @@ class BlokusPyGame(Blokus):
         pygame.draw.rect(surface, color, rect, 0)
     
     def drawPiece(self, surface, piece, center, color):
-        [dimx, dimy] = piece.current_dimension()
+        (dimx, dimy) = piece.shape()
         for x_ind in range(dimx):
             x = center[0]+BLOCK_SIZE*(x_ind-dimx/2+0.5)
             for y_ind in range(dimy):
@@ -286,7 +286,7 @@ class BlokusPyGame(Blokus):
                     self.drawBlock(surface, [x, y], color)
     
     def drawSmallPicece(self, surface, piece, center, color):
-        [dimx, dimy] = piece.current_dimension()
+        (dimx, dimy) = piece.shape()
         for x_ind in range(dimx):
             x = center[0]+SMALL_BLOCK_SIZE*(x_ind-dimx/2+0.5)
             for y_ind in range(dimy):
