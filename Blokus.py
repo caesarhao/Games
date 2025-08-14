@@ -103,7 +103,7 @@ PIECES_ARR = [
 
 class Piece:
     def __init__(self, piece_arr):
-        self.__piecearr = numpy.asarray(piece_arr)
+        self.__piecearr = piece_arr.copy()
         self.variants = []
         self.cal_variants()
         self.__idx = 0
@@ -120,17 +120,17 @@ class Piece:
             self.__idx = 0
         return self.variants[self.__idx]
     def shape(self):
-        return self.__piecearr.shape
+        return (len(self.__piecearr), len(self.__piecearr[0]))
     def num_of_blocks(self):
         return numpy.count_nonzero(self.__piecearr)
     def rot90Left(self, pa, k):
-        return numpy.rot90(pa, k)
+        return numpy.rot90(pa, k).tolist()
     def rot90Right(self, pa, k):
-        return numpy.rot90(pa, -k)
+        return numpy.rot90(pa, -k).tolist()
     def flipud(self, pa):
-        return numpy.flipud(pa)
+        return numpy.flipud(pa).tolist()
     def fliplr(self, pa):
-        return numpy.fliplr(pa)
+        return numpy.fliplr(pa).tolist()
     def cal_variants(self):
         self.variants = []
         for i in range(4):
@@ -139,7 +139,7 @@ class Piece:
         for i in range(4):
             self.variants.append(self.rot90Left(piecearr_ud, i))
         # remove duplicates
-        # self.variants = numpy.unique(self.variants, axis=0)
+        # self.variants = numpy.unique(self.variants, axis=0)..tolist()
 
 class Player:
     def __init__(self, color, position_name):
