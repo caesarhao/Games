@@ -1,6 +1,7 @@
 import sys
 import pygame
 import time
+import numpy
 
 SMALL_MARGIN = 1
 MID_MARGIN = 5
@@ -102,19 +103,43 @@ PIECES_ARR = [
 
 class Piece:
     def __init__(self, piece_arr):
-        self.piecearr = piece_arr.copy()
+        self.__piecearr = piece_arr.copy()
+        self.variants = []
+        self.cal_variants()
+        self.__idx = 0
+    def num_of_variants(self):
+        return len(self.variants)
+    def curent_idx(self):
+        return self.__idx
+    def current_variant(self):
+        return self.variants[self.__idx]
         
-    def dimension(self):
-        return [len(self.piecearr), len(self.piecearr[0])]
-    def size(self):
-        retu = 0
-        for r in self.piecearr:
-            for s in r:
-                if s == 1:
-                    retu += 1
-        return retu
-    def rotate(self):
-        pass
+    def next_variant(self):
+        self.__idx += 1
+        if self.__idx >= self.num_of_variants():
+            self.__idx = 0
+        return self.variants[self.__idx]
+    def current_dimension(self):
+        return [len(self.__piecearr), len(self.__piecearr[0])]
+    def num_of_blocks(self):
+        return numpy.count_nonzero(self.__piecearr)
+    def rot90Left(self, pa, k):
+        return numpy.rot90(pa, k)
+    def rot90Right(self, pa, k):
+        return numpy.rot90(pa, -k)
+    def flipud(self, pa):
+        return numpy.flipud(pa)
+    def fliplr(self, pa):
+        return numpy.fliplr(pa)
+    def cal_variants(self):
+        self.variants = []
+        for i in range(4):
+            self.variants.append(self.rot90Left(self.__piecearr, i))
+        piecearr_ud = self.flipud(self.__piecearr)
+        for i in range(4):
+            self.variants.append(self.rot90Left(piecearr_ud, i))
+        # remove duplicates
+        # self.variants = numpy.unique(self.variants, axis=0)
 
 class Player:
     def __init__(self, color, position_name):
@@ -252,21 +277,21 @@ class BlokusPyGame(Blokus):
         pygame.draw.rect(surface, color, rect, 0)
     
     def drawPiece(self, surface, piece, center, color):
-        [dimx, dimy] = piece.dimension()
+        [dimx, dimy] = piece.current_dimension()
         for x_ind in range(dimx):
             x = center[0]+BLOCK_SIZE*(x_ind-dimx/2+0.5)
             for y_ind in range(dimy):
                 y = center[1]+BLOCK_SIZE*(y_ind-dimy/2+0.5)
-                if piece.piecearr[x_ind][y_ind] > 0:
+                if piece.current_variant()[x_ind][y_ind] > 0:
                     self.drawBlock(surface, [x, y], color)
     
     def drawSmallPicece(self, surface, piece, center, color):
-        [dimx, dimy] = piece.dimension()
+        [dimx, dimy] = piece.current_dimension()
         for x_ind in range(dimx):
             x = center[0]+SMALL_BLOCK_SIZE*(x_ind-dimx/2+0.5)
             for y_ind in range(dimy):
                 y = center[1]+SMALL_BLOCK_SIZE*(y_ind-dimy/2+0.5)
-                if piece.piecearr[x_ind][y_ind] > 0:
+                if piece.current_variant()[x_ind][y_ind] > 0:
                     self.drawSmallBlock(surface, [x, y], color)
     
     def drawStartBlock(self, player):
