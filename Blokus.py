@@ -172,6 +172,8 @@ class Blokus(object):
 class BlokusPyGame(Blokus):
     def __init__(self):
         super().__init__()
+        self.screen = None
+        self.dest_width = 700
         self.window = None
         self.playBoard = None
         self.playBoardRect = None
@@ -184,9 +186,12 @@ class BlokusPyGame(Blokus):
         
     def initGUI(self):
         pygame.init()
-        self.window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+        screen_info = pygame.display.Info()
+        self.dest_width =screen_info.current_h - 100 
+        self.screen = pygame.display.set_mode((self.dest_width, self.dest_width), pygame.SCALED) 
+        self.window = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
         self.window.fill(COLORS['BLACK'])
-                
+ 
         self.playBoardRect = pygame.Rect(BOARD_x, BOARD_y, BOARD_WIDTH, BOARD_HEIGHT)
         self.playBoard = pygame.Surface((BOARD_WIDTH, BOARD_HEIGHT))
         self.playBoard.fill(COLORS['BLACK'])
@@ -195,20 +200,21 @@ class BlokusPyGame(Blokus):
         
         self.playerRegionSurfaces = []
         for i in range(4):
-            new_player_region = pygame.Surface((PLAYER_WIDTH, PLAYER_HEIGHT))
+            if i%2 == 0:
+                rw = PLAYER_WIDTH
+                rh = PLAYER_HEIGHT
+            else:
+                rh = PLAYER_WIDTH
+                rw = PLAYER_HEIGHT 
+            new_player_region = pygame.Surface((rw, rh))
             self.playerRegionSurfaces.append(new_player_region)
             new_player_region.fill(COLORS['BLACK'])
             self.drawPlayerRegion(self.players[i])
-            new_player_region = pygame.transform.rotate(new_player_region, (90*i))
+            
             self.window.blit(new_player_region, self.players[i].position)
-            if i%2 == 0:
-                w = PLAYER_WIDTH
-                h = PLAYER_HEIGHT
-            else:
-                h = PLAYER_WIDTH
-                w = PLAYER_HEIGHT
-            new_player_region_rect = pygame.Rect(self.players[i].position[0], self.players[i].position[1], w, h)
+            new_player_region_rect = pygame.Rect(self.players[i].position[0], self.players[i].position[1], rw, rh)
             self.playerRegionRects.append(new_player_region_rect)
+             
         
         self.draftRegionSurfaces = []
         for i in range(4):
@@ -226,6 +232,10 @@ class BlokusPyGame(Blokus):
             self.startBlockSurfaces.append(new_startblock)
             self.drawStartBlock(self.players[i])
             self.window.blit(new_startblock, self.players[i].startblockposition)
+        
+        self.window = pygame.transform.scale(self.window, (self.dest_width, self.dest_width))
+        self.screen.blit(self.window, (0,0))
+        pygame.display.update() 
     
     def updateGUI(self):
         self.window.blit(self.playBoard, (BOARD_x, BOARD_y))
@@ -233,20 +243,33 @@ class BlokusPyGame(Blokus):
             self.window.blit(self.playerRegionSurfaces[i], self.players[i].position)
             self.window.blit(self.startBlockSurfaces[i], self.players[i].startblockposition)
             self.window.blit(self.draftRegionSurfaces[i], self.players[i].draftposition)
-    
-    def drawPlayerRegion(self, player):
+        #self.window = pygame.transform.scale(self.window, (self.dest_width, self.dest_width))
+        self.screen.blit(self.window, (0,0))
+        pygame.display.update() 
+
+    def drawPlayerRegion(self, player : Player):
         surface = self.playerRegionSurfaces[player.index]
         surface.fill(COLORS['BLACK'])
-        rect = pygame.Rect(0, 0, PLAYER_WIDTH, PLAYER_HEIGHT)
+        if player.index%2 == 0: 
+            rw = PLAYER_WIDTH
+            rh = PLAYER_HEIGHT
+            row_num = 3
+            col_num = 7
+        else:
+            rh = PLAYER_WIDTH
+            rw = PLAYER_HEIGHT
+            row_num = 7
+            col_num = 3 
+        rect = pygame.Rect(0, 0, rw, rh)
         pygame.draw.rect(surface, player.color, rect, 1)
-        for x in range(0, PLAYER_WIDTH, SMALL_PIECE_COMPART_SIZE):
-            for y in range(0, PLAYER_HEIGHT, SMALL_PIECE_COMPART_SIZE):
+        for x in range(0, rw, SMALL_PIECE_COMPART_SIZE):
+            for y in range(0, rh, SMALL_PIECE_COMPART_SIZE):
                 rect = pygame.Rect(x, y, SMALL_PIECE_COMPART_SIZE, SMALL_PIECE_COMPART_SIZE)
                 pygame.draw.rect(surface, player.color, rect, 1)
-        for x_ind in range(7):
-            for y_ind in range(3):
-                self.drawSmallPicece(surface, player.pieces[3*x_ind+y_ind], [SMALL_PIECE_COMPART_SIZE*(x_ind+0.5), SMALL_PIECE_COMPART_SIZE*(y_ind+0.5)], player.color)
-        self.playerRegionSurfaces[player.index] = pygame.transform.rotate(surface, (90*player.index))
+        for y_ind in range(row_num):
+            for x_ind in range(col_num):
+                self.drawSmallPicece(surface, player.pieces[col_num*y_ind+x_ind], [SMALL_PIECE_COMPART_SIZE*(x_ind+0.5), SMALL_PIECE_COMPART_SIZE*(y_ind+0.5)], player.color)
+        # self.playerRegionSurfaces[player.index] = pygame.transform.rotate(surface, (90*player.index))
     
     def drawDraftRegion(self, player):
         surface = self.draftRegionSurfaces[player.index]
