@@ -118,14 +118,17 @@ class Piece:
         return self.__idx
     def current_variant(self):
         return self.variants[self.__idx]
-        
+    def ini_variant(self):
+        return self.variants[0]
     def next_variant(self):
         self.__idx += 1
         if self.__idx >= self.num_of_variants():
             self.__idx = 0
         return self.variants[self.__idx]
-    def shape(self):
+    def ini_shape(self):
         return (len(self.__piecearr), len(self.__piecearr[0]))
+    def current_shape(self):
+        return (len(self.current_variant()), len(self.current_variant()[0]))
     def num_of_blocks(self):
         return numpy.count_nonzero(self.__piecearr)
     def rot90Left(self, pa, k):
@@ -326,7 +329,7 @@ class BlokusPyGame(Blokus):
         pygame.draw.rect(surface, color, rect, 0)
     
     def drawPiece(self, surface, piece, center, color):
-        (dimx, dimy) = piece.shape()
+        (dimx, dimy) = piece.current_shape()
         for x_ind in range(dimx):
             x = center[0]+BLOCK_SIZE*(x_ind-dimx/2+0.5)
             for y_ind in range(dimy):
@@ -335,12 +338,12 @@ class BlokusPyGame(Blokus):
                     self.drawBlock(surface, [x, y], color)
     
     def drawSmallPicece(self, surface, piece, center, color):
-        (dimx, dimy) = piece.shape()
+        (dimx, dimy) = piece.ini_shape()
         for x_ind in range(dimx):
             x = center[0]+SMALL_BLOCK_SIZE*(x_ind-dimx/2+0.5)
             for y_ind in range(dimy):
                 y = center[1]+SMALL_BLOCK_SIZE*(y_ind-dimy/2+0.5)
-                if piece.current_variant()[x_ind][y_ind] > 0:
+                if piece.ini_variant()[x_ind][y_ind] > 0:
                     self.drawSmallBlock(surface, [x, y], color)
     
     def drawStartBlock(self, player):
@@ -351,22 +354,43 @@ class BlokusPyGame(Blokus):
         for i in range(4):
             if self.playerRegionRects[i].collidepoint(pos):
                 # print("Player Region " + str(i) + " is selected.")
-                self.selectBlockIntoDraft(pos, self.players[i])
+                self.selectPieceIntoDraft(pos, self.players[i])
                 break
             elif self.draftRegionRects[i].collidepoint(pos):
                 print("Player Draft " + str(i) + " is selected.")
+                self.rotatePieceInDraft(self.players[i])
                 break
-    def selectBlockIntoDraft(self, pos, player):
+    def selectPieceIntoDraft(self, pos, player):
         for i in range(21):
             if self.playerPiecesRects[player.index][i].collidepoint(pos):
                print("Player " + str(player.index) + " selects the piece " + str(i))
                # redraw draft region
-               player.pieces[i].status = Piece.STATUS_InDraft
-               self.drawPieceInDraft(player, i)
-               # redraw player region
-               self.drawPlayerRegion(player)
+               if (player.pieces[i].status == Piece.STATUS_InStock):
+                   # restore the previous piece
+                   for j in range(21):
+                       if j != i and player.pieces[j].status == Piece.STATUS_InDraft:
+                           player.pieces[j].status = Piece.STATUS_InStock
+                   # draw selected piece into draft region
+                   player.pieces[i].status = Piece.STATUS_InDraft
+                   self.drawPieceInDraft(player, i)
+                   # redraw player region
+                   self.drawPlayerRegion(player)
                break
     
+    def rotatePieceInDraft(self, player):
+        # get the piece in draft region
+        piece = None
+        piece_index = 255
+        for i in range(21):
+            if player.pieces[i].status == Piece.STATUS_InDraft:
+                piece = player.pieces[i]
+                piece_index = i
+                break
+        if piece is None:
+            return
+        piece.next_variant()
+        self.drawPieceInDraft(player, piece_index)
+        
     def run(self):
 
         while True:
