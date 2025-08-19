@@ -139,6 +139,24 @@ class Piece:
         return numpy.flipud(pa).tolist()
     def fliplr(self, pa):
         return numpy.fliplr(pa).tolist()
+    def serialize_variant(variant) -> str:
+        retu = ''
+        for row in variant:
+            for col in row:
+                retu += (str(col) + ',')
+            retu += ';'
+        return retu
+    def deserialize_variant(string):
+        rows = string.split(';')
+        rows.pop()
+        retu = []
+        for r in rows:
+            rl = r.split(',')
+            rl.pop()
+            rl = list(map(int, rl))
+            retu.append(rl)
+        return retu
+        
     def cal_variants(self):
         self.variants = []
         for i in range(4):
@@ -147,7 +165,9 @@ class Piece:
         for i in range(4):
             self.variants.append(self.rot90Left(piecearr_ud, i))
         # remove duplicates
-        # self.variants = numpy.unique(self.variants, axis=0)..tolist()
+        variants_str_list = list(map(Piece.serialize_variant, self.variants))
+        variants_str_list = list(dict.fromkeys(variants_str_list))
+        self.variants = list(map(Piece.deserialize_variant, variants_str_list))
 
 class Player:
     def __init__(self, color, position_name):
@@ -198,7 +218,7 @@ class BlokusPyGame(Blokus):
     def initGUI(self):
         pygame.init()
         screen_info = pygame.display.Info()
-        print(screen_info)
+        # print(screen_info)
         self.dest_height = screen_info.current_h - 100
         self.dest_width = self.dest_height
         self.scale = WINDOW_WIDTH/self.dest_width
@@ -357,13 +377,12 @@ class BlokusPyGame(Blokus):
                 self.selectPieceIntoDraft(pos, self.players[i])
                 break
             elif self.draftRegionRects[i].collidepoint(pos):
-                print("Player Draft " + str(i) + " is selected.")
+                # print("Player Draft " + str(i) + " is selected.")
                 self.rotatePieceInDraft(self.players[i])
                 break
     def selectPieceIntoDraft(self, pos, player):
         for i in range(21):
             if self.playerPiecesRects[player.index][i].collidepoint(pos):
-               print("Player " + str(player.index) + " selects the piece " + str(i))
                # redraw draft region
                if (player.pieces[i].status == Piece.STATUS_InStock):
                    # restore the previous piece
@@ -375,6 +394,7 @@ class BlokusPyGame(Blokus):
                    self.drawPieceInDraft(player, i)
                    # redraw player region
                    self.drawPlayerRegion(player)
+                   print("Player " + str(player.index) + " selects the piece " + str(i) + " with variant " + str(player.pieces[i].curent_idx()) + " in Draft")
                break
     
     def rotatePieceInDraft(self, player):
@@ -390,6 +410,7 @@ class BlokusPyGame(Blokus):
             return
         piece.next_variant()
         self.drawPieceInDraft(player, piece_index)
+        print("Player " + str(player.index) + " selects the piece " + str(piece_index) + " with variant " + str(piece.curent_idx()))
         
     def run(self):
 
