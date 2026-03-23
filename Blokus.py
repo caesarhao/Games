@@ -1,3 +1,4 @@
+import math
 import sys
 import pygame
 import time
@@ -7,7 +8,7 @@ SMALL_MARGIN = 1
 MID_MARGIN = 5
 LARGE_MARGIN = 10
 BOARD_NUM_x = 20
-BOARD_NUM_y = 20
+BOARD_NUM_y = BOARD_NUM_x
 BLOCK_SIZE = 20 # pixel
 SMALL_BLOCK_SIZE = 10 # for player selection
 SMALL_PIECE_COMPART_SIZE = (SMALL_BLOCK_SIZE*6)
@@ -21,20 +22,26 @@ BOARD_x = (LARGE_MARGIN+PLAYER_HEIGHT+LARGE_MARGIN*2)
 BOARD_xend = (BOARD_x+BOARD_WIDTH)
 BOARD_y = (LARGE_MARGIN+PLAYER_HEIGHT+LARGE_MARGIN*2)
 BOARD_yend = (BOARD_y+BOARD_HEIGHT)
-WINDOW_HEIGHT = (LARGE_MARGIN+PLAYER_HEIGHT+LARGE_MARGIN*2+BOARD_HEIGHT+LARGE_MARGIN*2+PLAYER_HEIGHT+LARGE_MARGIN)
+INFO_REGION_HEIGHT = 200
+WINDOW_HEIGHT = (LARGE_MARGIN+PLAYER_HEIGHT+LARGE_MARGIN*2+BOARD_HEIGHT+LARGE_MARGIN*2+PLAYER_HEIGHT+LARGE_MARGIN+INFO_REGION_HEIGHT)
 WINDOW_WIDTH = (LARGE_MARGIN+PLAYER_HEIGHT+LARGE_MARGIN*2+BOARD_WIDTH+LARGE_MARGIN*2+PLAYER_HEIGHT+LARGE_MARGIN)
 
-
+# the board is the base to calculate the position of other regions, so the position of the board is fixed.
+# the top-left position of each player region is based on the position of the board.
+# top player region is on the top of the board
 tp_x = BOARD_x - LARGE_MARGIN
-tp_y = LARGE_MARGIN
-lp_x = LARGE_MARGIN
+tp_y = BOARD_y - LARGE_MARGIN*2 - PLAYER_HEIGHT
+# left player region is on the left of the board
+lp_x = BOARD_x - LARGE_MARGIN*2 - PLAYER_HEIGHT
 lp_y = BOARD_y - LARGE_MARGIN
+# bottom player region is on the bottom of the board
 bp_x = BOARD_x - LARGE_MARGIN
 bp_y = BOARD_yend + LARGE_MARGIN*2
+# right player region is on the right of the board
 rp_x = BOARD_xend + LARGE_MARGIN*2
 rp_y = BOARD_y - LARGE_MARGIN
 
-
+# the position of each player region
 PlayerPositions = {
     'Bottom':    (bp_x, bp_y),
     'Right':    (rp_x, rp_y),
@@ -42,13 +49,21 @@ PlayerPositions = {
     'Left':    (lp_x, lp_y)
 }
 
-StartBlockPositions = {
+GuideBlockPositions = {
     'Bottom':    (BOARD_xend, BOARD_yend),
     'Right':    (BOARD_xend, BOARD_y-BLOCK_SIZE),
     'Top':    (BOARD_x-BLOCK_SIZE, BOARD_y-BLOCK_SIZE),
     'Left':    (BOARD_x-BLOCK_SIZE, BOARD_yend)
 }
 
+StartBlockIndexes = {
+    'Bottom':    (BOARD_NUM_x - 1, BOARD_NUM_y - 1),
+    'Right' :    (BOARD_NUM_x - 1, 0),
+    'Top'   :    (0, 0),
+    'Left'  :    (0, BOARD_NUM_y - 1)
+}
+
+# the position of each player draft region
 DraftPositions = {
     'Bottom':    (BOARD_xend+LARGE_MARGIN*2, BOARD_yend+LARGE_MARGIN*2),
     'Right':    (BOARD_xend+LARGE_MARGIN*2, BOARD_y-DRAFT_HEIGHT-LARGE_MARGIN*2),
@@ -56,13 +71,15 @@ DraftPositions = {
     'Left':    (BOARD_x-DRAFT_HEIGHT-LARGE_MARGIN*2, BOARD_yend+LARGE_MARGIN*2)
 }
 
+# the center position of each player draft region
 DraftCenterPositions = {
-    'Bottom':    (BOARD_xend+LARGE_MARGIN*2+DRAFT_WIDTH/2, BOARD_yend+LARGE_MARGIN*2+DRAFT_WIDTH/2),
-    'Right':    (BOARD_xend+LARGE_MARGIN*2+DRAFT_WIDTH/2, BOARD_y-DRAFT_HEIGHT-LARGE_MARGIN*2+DRAFT_WIDTH/2),
-    'Top':    (BOARD_x-DRAFT_HEIGHT-LARGE_MARGIN*2+DRAFT_WIDTH/2, BOARD_y-DRAFT_HEIGHT-LARGE_MARGIN*2+DRAFT_WIDTH/2),
-    'Left':    (BOARD_x-DRAFT_HEIGHT-LARGE_MARGIN*2+DRAFT_WIDTH/2, BOARD_yend+LARGE_MARGIN*2+DRAFT_WIDTH/2)
+    'Bottom':    (DraftPositions['Bottom'][0]+DRAFT_WIDTH/2, DraftPositions['Bottom'][1]+DRAFT_WIDTH/2),
+    'Right':    (DraftPositions['Right'][0]+DRAFT_WIDTH/2, DraftPositions['Right'][1]+DRAFT_WIDTH/2),
+    'Top':    (DraftPositions['Top'][0]+DRAFT_WIDTH/2, DraftPositions['Top'][1]+DRAFT_WIDTH/2),
+    'Left':    (DraftPositions['Left'][0]+DRAFT_WIDTH/2, DraftPositions['Left'][1]+DRAFT_WIDTH/2)
 }
-    
+
+# defition of colors    
 COLORS = {
     'BLACK':    (0,0,0),
     'GRAY':     (128,128,128),
@@ -73,6 +90,7 @@ COLORS = {
     'YELLOW':   (255,255,0)
     }
 
+# the definition of pieces, 21 pieces in total, each piece is represented by a 2D array, where 1 means there is a block and 0 means there is no block.
 PIECES_ARR = [
         # 1*1
         [[1]],
@@ -103,6 +121,12 @@ PIECES_ARR = [
     ]
 
 class Piece:
+    '''
+        the definition of the Piece class, which represents a piece in the game, it has the following attributes:
+        piecearr: the original 2D array of the piece, which is used to calculate the variants of the piece, and to calculate the number of blocks in the piece.
+        variants: a list of 2D arrays, which are the variants of the piece, including the original piece, the rotated pieces and the flipped pieces. there are at most 8 variants for each piece, but some pieces have less than 8 variants because of the symmetry.
+        idx: the index of the current variant of the piece, which is used to keep track of the current variant of the piece when the player rotates the piece in the draft region.
+    '''
     STATUS_InStock = 0
     STATUS_InDraft = 1
     STATUS_InBoard = 2
@@ -124,6 +148,11 @@ class Piece:
         self.__idx += 1
         if self.__idx >= self.num_of_variants():
             self.__idx = 0
+        return self.variants[self.__idx]
+    def previous_variant(self):
+        self.__idx -= 1
+        if self.__idx < 0:
+            self.__idx = self.num_of_variants() - 1
         return self.variants[self.__idx]
     def ini_shape(self):
         return (len(self.__piecearr), len(self.__piecearr[0]))
@@ -170,11 +199,21 @@ class Piece:
         self.variants = list(map(Piece.deserialize_variant, variants_str_list))
 
 class Player:
+    '''
+    the definition of the Player class, which represents a player in the game, it has the following attributes:
+color: the color of the player, which is used to draw the pieces of the player on the board and in the player region.
+position_name: the name of the position of the player, which is used to calculate the position of the player region, the draft region and the start block.
+position: the position of the player region, which is used to draw the player region on the window.
+startblockposition: the position of the start block, which is used to draw the start block on the window.
+draftposition: the position of the draft region, which is used to draw the draft region on the window.
+index: the index of the player, which is used to access the player region surface and the draft region surface in the BlokusPyGame class.
+pieces: a list of Piece objects, which are the pieces of the player, and the status of each piece is stored in the Piece object, which is used to draw the pieces in the player region and the draft region.
+remaining: a list of the indices of the pieces that are still in stock, which is used to keep track of the pieces that are still in stock, and to check if the player has any pieces left to play.'''
     def __init__(self, color, position_name):
         self.color = color
         self.position_name = position_name
         self.position = PlayerPositions[self.position_name]
-        self.startblockposition = StartBlockPositions[self.position_name]
+        self.guideblockposition = GuideBlockPositions[self.position_name]
         self.draftposition = DraftPositions[self.position_name]
         self.index = list(PlayerPositions.keys()).index(self.position_name)
         self.pieces = self.createPieces()
@@ -184,10 +223,34 @@ class Player:
         for p in PIECES_ARR:
             piecez.append(Piece(p))
         return piecez
-    
-class Blokus(object):
+    def current_piece(self):
+        for i in range(len(self.pieces)):
+            if self.pieces[i].status == Piece.STATUS_InDraft:
+                return self.pieces[i]
+        return None
+    def current_piece_index(self):
+        for i in range(len(self.pieces)):
+            if self.pieces[i].status == Piece.STATUS_InDraft:
+                return i
+        return None
+class Board:
+    '''
+    the definition of the Board class, which represents the board in the game, it has the following attributes:
+    the board is represented by a 2D array, where -1 means there is no piece on the block, and the value of the block is the index of the player who has a piece on the block. the position of the block in the board is based on the position of the block on the window, which is calculated by the position of the board and the size of the block.
+    '''
     def __init__(self):
+        self.content = [[-1 for i in range(BOARD_NUM_x)] for j in range(BOARD_NUM_y)]
+        
+
+class Blokus(object):
+    STATUS_InStock = 0
+    STATUS_InDraft = 1
+    STATUS_InBoard = 2
+    def __init__(self):
+        self.board = Board()
         self.players = self.createPlayers()
+        self.current_player_index = 0
+        self.PlayerStatus = Blokus.STATUS_InStock
 
     def createPlayers(self):
         players = []
@@ -196,13 +259,22 @@ class Blokus(object):
         players.append(Player(COLORS['BLUE'], 'Top'))
         players.append(Player(COLORS['YELLOW'], 'Left'))
         return players
+    
+    def getColorWithPlayerIndex(self, index):
+        return self.players[index].color
+
+    def nextPlayer(self):
+        self.current_player_index += 1
+        if self.current_player_index >= len(self.players):
+            self.current_player_index = 0
+
 
 class BlokusPyGame(Blokus):
     def __init__(self):
         super().__init__()
         self.screen = None
-        self.dest_width = 700
-        self.dest_height = 700
+        self.dest_width = WINDOW_WIDTH
+        self.dest_height = WINDOW_HEIGHT
         self.scale = 1
         self.window = None
         self.playBoard = None
@@ -219,9 +291,10 @@ class BlokusPyGame(Blokus):
         pygame.init()
         screen_info = pygame.display.Info()
         # print(screen_info)
-        self.dest_height = screen_info.current_h - 100
-        self.dest_width = self.dest_height
-        self.scale = WINDOW_WIDTH/self.dest_width
+        self.dest_height = screen_info.current_h * 0.8
+        self.scale = WINDOW_HEIGHT/self.dest_height
+        self.dest_width = WINDOW_WIDTH/self.scale
+        print("Display scale is " + str(self.scale))
         self.screen = pygame.display.set_mode((self.dest_width, self.dest_height), pygame.SCALED)
         pygame.display.set_caption("Blokus")        
         self.window = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -272,12 +345,12 @@ class BlokusPyGame(Blokus):
             new_draft_region_rect = pygame.Rect(self.players[i].draftposition[0], self.players[i].draftposition[1], DRAFT_WIDTH, DRAFT_HEIGHT)
             self.draftRegionRects.append(new_draft_region_rect)
         
-        self.startBlockSurfaces = []
+        self.guideBlockSurfaces = []
         for i in range(4):
-            new_startblock = pygame.Surface((BLOCK_SIZE, BLOCK_SIZE))
-            self.startBlockSurfaces.append(new_startblock)
-            self.drawStartBlock(self.players[i])
-            self.window.blit(new_startblock, self.players[i].startblockposition)
+            new_guideblock = pygame.Surface((BLOCK_SIZE, BLOCK_SIZE))
+            self.guideBlockSurfaces.append(new_guideblock)
+            self.drawGuideBlock(self.players[i])
+            self.window.blit(new_guideblock, self.players[i].guideblockposition)
         
         scaled_window = pygame.transform.scale(self.window, (self.dest_width, self.dest_height))
         self.screen.blit(scaled_window, (0,0))
@@ -286,7 +359,7 @@ class BlokusPyGame(Blokus):
     def updateGUI(self):
         for i in range(4):
             self.window.blit(self.playerRegionSurfaces[i], self.players[i].position)
-            self.window.blit(self.startBlockSurfaces[i], self.players[i].startblockposition)
+            self.window.blit(self.guideBlockSurfaces[i], self.players[i].guideblockposition)
             self.window.blit(self.draftRegionSurfaces[i], self.players[i].draftposition)
         self.window.blit(self.playBoard, (BOARD_x, BOARD_y))
         scaled_window = pygame.transform.scale(self.window, (self.dest_width, self.dest_height))
@@ -339,6 +412,33 @@ class BlokusPyGame(Blokus):
             for y in range(0, BOARD_HEIGHT, BLOCK_SIZE):
                 rect = pygame.Rect(x, y, BLOCK_SIZE, BLOCK_SIZE)
                 pygame.draw.rect(surface, COLORS["WHITE"], rect, 2)
+        for x_ind in range(BOARD_NUM_x):
+            for y_ind in range(BOARD_NUM_y):
+                blockownerindex = self.board.content[x_ind][y_ind]
+                if blockownerindex >= 0:
+                    self.drawBlock(surface, self.getCenterOfBlockOnBoard((x_ind, y_ind)), self.getColorWithPlayerIndex(blockownerindex))
+                else:
+                    self.drawBlock(surface, self.getCenterOfBlockOnBoard((x_ind, y_ind)), COLORS['BLACK'])
+    
+    
+    def drawPieceAbovePlayBoard(self, indexes):
+        surface = self.playBoard
+        player = self.players[self.current_player_index]
+        self.drawPiece(surface, player.current_piece(), self.getCenterOfBlockOnBoard(indexes), COLORS[player.color])
+
+    def getIndexOfBlockOnBoard(self, pos):
+        x_ind = (pos[0] - BOARD_x) // BLOCK_SIZE
+        y_ind = (pos[1] - BOARD_y) // BLOCK_SIZE
+        x = math.floor(x_ind)
+        y = math.floor(y_ind)
+        x = max(0, min(x, BOARD_NUM_x-1))
+        y = max(0, min(y, BOARD_NUM_y-1))
+        return (x, y)
+    
+    def getCenterOfBlockOnBoard(self, indexes):
+        x = BLOCK_SIZE*(indexes[0]+0.5)
+        y = BLOCK_SIZE*(indexes[1]+0.5)
+        return (x, y)
     
     def drawBlock(self, surface, center, color):
         rect = pygame.Rect(center[0]-BLOCK_SIZE/2+2, center[1]-BLOCK_SIZE/2+2, BLOCK_SIZE-4, BLOCK_SIZE-4)
@@ -366,20 +466,49 @@ class BlokusPyGame(Blokus):
                 if piece.ini_variant()[x_ind][y_ind] > 0:
                     self.drawSmallBlock(surface, [x, y], color)
     
-    def drawStartBlock(self, player):
-        surface = self.startBlockSurfaces[player.index]
+    def drawGuideBlock(self, player):
+        surface = self.guideBlockSurfaces[player.index]
         surface.fill(player.color)
     
-    def dealWithMouseUp(self, pos):
-        for i in range(4):
-            if self.playerRegionRects[i].collidepoint(pos):
-                # print("Player Region " + str(i) + " is selected.")
-                self.selectPieceIntoDraft(pos, self.players[i])
-                break
-            elif self.draftRegionRects[i].collidepoint(pos):
-                # print("Player Draft " + str(i) + " is selected.")
-                self.rotatePieceInDraft(self.players[i])
-                break
+    def dealWithMouseLeftDown(self, pos):
+        i = self.current_player_index
+        if self.playerRegionRects[i].collidepoint(pos):
+            # print("Player Region " + str(i) + " is selected.")
+            self.selectPieceIntoDraft(pos, self.players[i])
+        elif self.playBoardRect.collidepoint(pos):
+            print("Play Board is selected : " + str(self.getIndexOfBlockOnBoard(pos)))
+        else:
+            pass
+    
+    def dealWithMouseLeftUp(self, pos):
+        pass
+
+    def dealWithMouseMiddleDown(self, pos):
+        i = self.current_player_index
+        if self.draftRegionRects[i].collidepoint(pos):
+            # print("Player Draft " + str(i) + " is selected.")
+            self.rotatePieceInDraft(self.players[i], -1)
+
+    def dealWithMouseMiddleUp(self, pos):
+        i = self.current_player_index
+        if self.draftRegionRects[i].collidepoint(pos):
+            # print("Player Draft " + str(i) + " is selected.")
+            self.rotatePieceInDraft(self.players[i], 1)
+    
+    def dealWithMouseMotion(self, pos):
+        if self.playBoardRect.collidepoint(pos):
+            indexes = self.getIndexOfBlockOnBoard(pos)
+            print("Mouse moved above Play Board : " + str(indexes))
+            if self.PlayerStatus == Blokus.STATUS_InDraft:
+                self.drawPieceAbovePlayBoard(indexes)
+        
+        
+    def dealWithMouseRightDown(self, pos):
+        pass
+
+    def dealWithMouseRightUp(self, pos):
+        pass
+
     def selectPieceIntoDraft(self, pos, player):
         for i in range(21):
             if self.playerPiecesRects[player.index][i].collidepoint(pos):
@@ -397,7 +526,7 @@ class BlokusPyGame(Blokus):
                    print("Player " + str(player.index) + " selects the piece " + str(i) + " with variant " + str(player.pieces[i].curent_idx()) + " in Draft")
                break
     
-    def rotatePieceInDraft(self, player):
+    def rotatePieceInDraft(self, player, direction = 1):
         # get the piece in draft region
         piece = None
         piece_index = 255
@@ -408,7 +537,10 @@ class BlokusPyGame(Blokus):
                 break
         if piece is None:
             return
-        piece.next_variant()
+        if direction == 1:
+            piece.next_variant()
+        else:
+            piece.previous_variant()
         self.drawPieceInDraft(player, piece_index)
         print("Player " + str(player.index) + " selects the piece " + str(piece_index) + " with variant " + str(piece.curent_idx()))
         
@@ -419,10 +551,50 @@ class BlokusPyGame(Blokus):
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pass
+            elif event.type == pygame.KEYUP:
+                pass
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                pos = pygame.mouse.get_pos()
+                pos = tuple(i * self.scale for i in pos)
+                if event.button == 1:
+                    self.dealWithMouseLeftDown(pos)
+                elif event.button == 2:
+                    pass
+                elif event.button == 3:
+                    self.dealWithMouseRightDown(pos)
+                else:
+                    pass
             elif event.type == pygame.MOUSEBUTTONUP:
                 pos = pygame.mouse.get_pos()
                 pos = tuple(i * self.scale for i in pos)
-                self.dealWithMouseUp(pos)
+                if event.button == 1:
+                    self.dealWithMouseLeftUp(pos)
+                elif event.button == 2:
+                    pass
+                elif event.button == 3:
+                    self.dealWithMouseRightUp(pos)
+                else:
+                    pass
+            elif event.type == pygame.MOUSEWHEEL:
+                pos = pygame.mouse.get_pos()
+                pos = tuple(i * self.scale for i in pos)
+                if event.y > 0:
+                    self.dealWithMouseMiddleDown(pos)
+                elif event.y < 0:
+                    self.dealWithMouseMiddleUp(pos)
+                else:
+                    pass
+            elif event.type == pygame.MOUSEMOTION:
+                pos = pygame.mouse.get_pos()
+                pos = tuple(i * self.scale for i in pos)
+                self.dealWithMouseMotion(pos)
+
+            else:
+                pass
+            
             self.updateGUI()
             pygame.display.update()
         
