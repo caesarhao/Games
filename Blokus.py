@@ -23,6 +23,8 @@ BOARD_xend = (BOARD_x+BOARD_WIDTH)
 BOARD_y = (LARGE_MARGIN+PLAYER_HEIGHT+LARGE_MARGIN*2)
 BOARD_yend = (BOARD_y+BOARD_HEIGHT)
 INFO_REGION_HEIGHT = 200
+INFO_REGION_x = LARGE_MARGIN*2
+INFO_REGION_y = BOARD_yend + LARGE_MARGIN*2 + PLAYER_HEIGHT+LARGE_MARGIN*2
 WINDOW_HEIGHT = (LARGE_MARGIN+PLAYER_HEIGHT+LARGE_MARGIN*2+BOARD_HEIGHT+LARGE_MARGIN*2+PLAYER_HEIGHT+LARGE_MARGIN+INFO_REGION_HEIGHT)
 WINDOW_WIDTH = (LARGE_MARGIN+PLAYER_HEIGHT+LARGE_MARGIN*2+BOARD_WIDTH+LARGE_MARGIN*2+PLAYER_HEIGHT+LARGE_MARGIN)
 
@@ -218,6 +220,7 @@ remaining: a list of the indices of the pieces that are still in stock, which is
         self.index = list(PlayerPositions.keys()).index(self.position_name)
         self.pieces = self.createPieces()
         self.remaining = list(range(len(self.pieces)))
+        self.remaining_blocks = sum([p.num_of_blocks() for p in self.pieces])
     def createPieces(self):
         piecez = []
         for p in PIECES_ARR:
@@ -236,6 +239,7 @@ remaining: a list of the indices of the pieces that are still in stock, which is
     def remove_piece_from_remaining(self, piece_index):
         if piece_index in self.remaining:
             self.remaining.remove(piece_index)
+            self.remaining_blocks -= self.pieces[piece_index].num_of_blocks()
     
 class Board:
     '''
@@ -367,6 +371,7 @@ class BlokusPyGame(Blokus):
         
     def initGUI(self):
         pygame.init()
+        info_font = pygame.font.SysFont('timesnewroman',  30)
         screen_info = pygame.display.Info()
         # print(screen_info)
         self.dest_height = screen_info.current_h * 0.8
@@ -429,6 +434,8 @@ class BlokusPyGame(Blokus):
             self.guideBlockSurfaces.append(new_guideblock)
             self.drawGuideBlock(self.players[i])
             self.window.blit(new_guideblock, self.players[i].guideblockposition)
+        
+        self.drawInfo()
         
         scaled_window = pygame.transform.scale(self.window, (self.dest_width, self.dest_height))
         self.screen.blit(scaled_window, (0,0))
@@ -541,6 +548,16 @@ class BlokusPyGame(Blokus):
         surface = self.guideBlockSurfaces[player.index]
         surface.fill(player.color)
     
+    def drawInfo(self):
+        info_font = pygame.font.SysFont('timesnewroman',  20)
+        self.infoSurfaces = []
+        for i in range(4):
+            info_surface = info_font.render("Player " + str(i) + " has " + str(len(self.players[i].remaining)) + " pieces and " + str(self.players[i].remaining_blocks) + " blocks remaining", True, self.players[i].color, COLORS['BLACK'])
+            self.infoSurfaces.append(info_surface)
+            self.window.blit(info_surface, (INFO_REGION_x, INFO_REGION_y+30*i))
+        self.infoSurface_player = info_font.render("Player " + str(self.current_player_index) + "'s turn", True, self.players[self.current_player_index].color, COLORS['BLACK'])
+        self.window.blit(self.infoSurface_player, (INFO_REGION_x, INFO_REGION_y+30*4))
+    
     def dealWithMouseLeftDown(self, pos):
         i = self.current_player_index
         player = self.players[i]
@@ -558,6 +575,7 @@ class BlokusPyGame(Blokus):
                 self.board.resetTable4Display()
                 self.drawPlayBoard()
                 self.nextPlayer()
+                self.drawInfo()
                 self.PlayerStatus = Blokus.STATUS_InStock
         else:
             pass
@@ -643,6 +661,11 @@ class BlokusPyGame(Blokus):
                 sys.exit()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    self.nextPlayer()
+                    self.drawInfo()
+                elif event.key == pygame.K_RETURN:
+                    pass
+                else:
                     pass
             elif event.type == pygame.KEYUP:
                 pass
