@@ -217,7 +217,7 @@ remaining: a list of the indices of the pieces that are still in stock, which is
         self.draftposition = DraftPositions[self.position_name]
         self.index = list(PlayerPositions.keys()).index(self.position_name)
         self.pieces = self.createPieces()
-        self.remaining = range(len(self.pieces))
+        self.remaining = list(range(len(self.pieces)))
     def createPieces(self):
         piecez = []
         for p in PIECES_ARR:
@@ -233,6 +233,9 @@ remaining: a list of the indices of the pieces that are still in stock, which is
             if self.pieces[i].status == Piece.STATUS_InDraft:
                 return i
         return None
+    def remove_piece_from_remaining(self, piece_index):
+        if piece_index in self.remaining:
+            self.remaining.remove(piece_index)
     
 class Board:
     '''
@@ -273,6 +276,48 @@ class Board:
             for j in range(dim_y):
                 if piece2display.current_variant()[i][j] > 0:
                     self.table4display[x_ind+i][y_ind+j] = value
+    
+    def validatePotentialPlacement(self, blockIndexes, player, piece2place : Piece) -> bool:
+        # check if the piece can be placed on the board according to the rules of the game, which are:
+        x_ind = blockIndexes[0]
+        y_ind = blockIndexes[1]
+        dim_x = piece2place.current_shape()[0]
+        dim_y = piece2place.current_shape()[1]
+        player_index = player.index
+        # 0. the first piece of each player must be placed in the corner of the board, and the start block of each player is defined in the StartBlockIndexes dictionary, which is based on the position of the player region.
+        if len(player.remaining) == len(player.pieces):
+            start_block_index = StartBlockIndexes[player.position_name]
+            for i in range(dim_x):
+                for j in range(dim_y):
+                    if piece2place.current_variant()[i][j] > 0:
+                        if (x_ind+i, y_ind+j) == start_block_index:
+                            return True
+        # 1. the piece must be placed on the board, and cannot be placed outside the board.
+        if x_ind + dim_x > BOARD_NUM_x or y_ind + dim_y > BOARD_NUM_y:
+            return False
+         # 2. the piece cannot be placed on top of another piece.
+        for i in range(dim_x):
+            for j in range(dim_y):
+                if piece2place.current_variant()[i][j] > 0 and self.table[x_ind+i][y_ind+j] > -1:
+                    return False
+        # 3. the piece must be placed in a way that it touches at least the corner of a piece of the same player, but cannot touch any piece of the same player by edge, it can only touch by corner.
+        touch_corner = False
+        for i in range(dim_x):
+            for j in range(dim_y):
+                if piece2place.current_variant()[i][j] > 0:
+                    # check the 4 corners of the block
+                    if (x_ind+i-1 >= 0 and y_ind+j-1 >= 0 and self.table[x_ind+i-1][y_ind+j-1] == player_index) or \
+                       (x_ind+i-1 >= 0 and y_ind+j+1 < BOARD_NUM_y and self.table[x_ind+i-1][y_ind+j+1] == player_index) or \
+                       (x_ind+i+1 < BOARD_NUM_x and y_ind+j-1 >= 0 and self.table[x_ind+i+1][y_ind+j-1] == player_index) or \
+                       (x_ind+i+1 < BOARD_NUM_x and y_ind+j+1 < BOARD_NUM_y and self.table[x_ind+i+1][y_ind+j+1] == player_index):
+                        touch_corner = True
+                    # check the 4 edges of the block
+                    if (x_ind+i-1 >= 0 and self.table[x_ind+i-1][y_ind+j] == player_index) or \
+                       (x_ind+i+1 < BOARD_NUM_x and self.table[x_ind+i+1][y_ind+j] == player_index) or \
+                       (y_ind+j-1 >= 0 and self.table[x_ind+i][y_ind+j-1] == player_index) or \
+                       (y_ind+j+1 < BOARD_NUM_y and self.table[x_ind+i][y_ind+j+1] == player_index):
+                        return False
+        return touch_corner
 
 class Blokus(object):
     STATUS_InStock = 0
@@ -498,14 +543,16 @@ class BlokusPyGame(Blokus):
     
     def dealWithMouseLeftDown(self, pos):
         i = self.current_player_index
+        player = self.players[i]
         if self.playerRegionRects[i].collidepoint(pos):
             # print("Player Region " + str(i) + " is selected.")
             self.selectPieceIntoDraft(pos, self.players[i])
         elif self.playBoardRect.collidepoint(pos):
             print("Play Board is selected : " + str(self.getIndexOfBlockOnBoard(pos)))
             indexes = self.getIndexOfBlockOnBoard(pos)
-            if self.PlayerStatus == Blokus.STATUS_InDraft:
+            if self.PlayerStatus == Blokus.STATUS_InDraft and self.board.validatePotentialPlacement(indexes, player, self.players[i].current_piece()):
                 piece = self.players[i].current_piece()
+                self.players[i].remove_piece_from_remaining(self.players[i].current_piece_index())
                 self.board.updateTable(indexes, self.current_player_index, piece)
                 piece.status = Piece.STATUS_InBoard
                 self.board.resetTable4Display()
