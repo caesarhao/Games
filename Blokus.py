@@ -233,14 +233,46 @@ remaining: a list of the indices of the pieces that are still in stock, which is
             if self.pieces[i].status == Piece.STATUS_InDraft:
                 return i
         return None
+    
 class Board:
     '''
     the definition of the Board class, which represents the board in the game, it has the following attributes:
-    the board is represented by a 2D array, where -1 means there is no piece on the block, and the value of the block is the index of the player who has a piece on the block. the position of the block in the board is based on the position of the block on the window, which is calculated by the position of the board and the size of the block.
+    the board is represented by a 2D array, where -1 means there is no piece on the block, and 0, 1, 2, 3 means there is a piece of the player with index 0, 1, 2, 3 on the block respectively. the board is used to check if the piece can be placed on the board, and to draw the pieces on the board.
     '''
     def __init__(self):
-        self.content = [[-1 for i in range(BOARD_NUM_x)] for j in range(BOARD_NUM_y)]
-        
+        self.table = [[-1 for i in range(BOARD_NUM_x)] for j in range(BOARD_NUM_y)]
+        self.table4display = [[-1 for i in range(BOARD_NUM_x)] for j in range(BOARD_NUM_y)]
+    
+    def resetTable4Display(self):
+        for i in range(BOARD_NUM_x):
+            for j in range(BOARD_NUM_y):
+                self.table4display[i][j] = self.table[i][j]
+    
+    def updateTable(self, blockIndexes, player_index, piece2display : Piece):
+        x_ind = blockIndexes[0]
+        y_ind = blockIndexes[1]
+        value = player_index
+        dim_x = piece2display.current_shape()[0]
+        dim_y = piece2display.current_shape()[1]
+        if x_ind + dim_x > BOARD_NUM_x or y_ind + dim_y > BOARD_NUM_y:
+            return
+        for i in range(dim_x):
+            for j in range(dim_y):
+                if piece2display.current_variant()[i][j] > 0:
+                    self.table[x_ind+i][y_ind+j] = value
+    
+    def updateDisplayTable(self, blockIndexes, player_index, piece2display : Piece):
+        x_ind = blockIndexes[0]
+        y_ind = blockIndexes[1]
+        value = player_index
+        dim_x = piece2display.current_shape()[0]
+        dim_y = piece2display.current_shape()[1]
+        if x_ind + dim_x > BOARD_NUM_x or y_ind + dim_y > BOARD_NUM_y:
+            return
+        for i in range(dim_x):
+            for j in range(dim_y):
+                if piece2display.current_variant()[i][j] > 0:
+                    self.table4display[x_ind+i][y_ind+j] = value
 
 class Blokus(object):
     STATUS_InStock = 0
@@ -282,10 +314,11 @@ class BlokusPyGame(Blokus):
         self.playerRegionSurfaces = []
         self.playerRegionRects = []
         self.playerPiecesRects = []
-        self.startBlockSurfaces = []
-        self.startBlockRects = []
         self.draftRegionSurfaces = []
         self.draftRegionRects = []
+        self.guideBlockSurfaces = []
+        self.guideBlockRects = []
+        self.blockIndexesOnBoard = (-1, -1)
         
     def initGUI(self):
         pygame.init()
@@ -408,24 +441,17 @@ class BlokusPyGame(Blokus):
     def drawPlayBoard(self):
         surface = self.playBoard
         surface.fill(COLORS['BLACK'])
-        for x in range(0, BOARD_WIDTH, BLOCK_SIZE):
-            for y in range(0, BOARD_HEIGHT, BLOCK_SIZE):
-                rect = pygame.Rect(x, y, BLOCK_SIZE, BLOCK_SIZE)
-                pygame.draw.rect(surface, COLORS["WHITE"], rect, 2)
         for x_ind in range(BOARD_NUM_x):
             for y_ind in range(BOARD_NUM_y):
-                blockownerindex = self.board.content[x_ind][y_ind]
-                if blockownerindex >= 0:
-                    self.drawBlock(surface, self.getCenterOfBlockOnBoard((x_ind, y_ind)), self.getColorWithPlayerIndex(blockownerindex))
+                rect = pygame.Rect(BLOCK_SIZE*x_ind, BLOCK_SIZE*y_ind, BLOCK_SIZE, BLOCK_SIZE)
+                blockownerindex = self.board.table4display[x_ind][y_ind]
+                pygame.draw.rect(surface, COLORS['WHITE'], rect, 2)
+                if blockownerindex > -1:
+                    rect = pygame.Rect(BLOCK_SIZE*x_ind+1, BLOCK_SIZE*y_ind+1, BLOCK_SIZE-2, BLOCK_SIZE-2)
+                    pygame.draw.rect(surface, self.getColorWithPlayerIndex(blockownerindex), rect, 0)
                 else:
-                    self.drawBlock(surface, self.getCenterOfBlockOnBoard((x_ind, y_ind)), COLORS['BLACK'])
-    
-    
-    def drawPieceAbovePlayBoard(self, indexes):
-        surface = self.playBoard
-        player = self.players[self.current_player_index]
-        self.drawPiece(surface, player.current_piece(), self.getCenterOfBlockOnBoard(indexes), COLORS[player.color])
-
+                    pass
+        
     def getIndexOfBlockOnBoard(self, pos):
         x_ind = (pos[0] - BOARD_x) // BLOCK_SIZE
         y_ind = (pos[1] - BOARD_y) // BLOCK_SIZE
@@ -477,6 +503,15 @@ class BlokusPyGame(Blokus):
             self.selectPieceIntoDraft(pos, self.players[i])
         elif self.playBoardRect.collidepoint(pos):
             print("Play Board is selected : " + str(self.getIndexOfBlockOnBoard(pos)))
+            indexes = self.getIndexOfBlockOnBoard(pos)
+            if self.PlayerStatus == Blokus.STATUS_InDraft:
+                piece = self.players[i].current_piece()
+                self.board.updateTable(indexes, self.current_player_index, piece)
+                piece.status = Piece.STATUS_InBoard
+                self.board.resetTable4Display()
+                self.drawPlayBoard()
+                self.nextPlayer()
+                self.PlayerStatus = Blokus.STATUS_InStock
         else:
             pass
     
@@ -498,9 +533,16 @@ class BlokusPyGame(Blokus):
     def dealWithMouseMotion(self, pos):
         if self.playBoardRect.collidepoint(pos):
             indexes = self.getIndexOfBlockOnBoard(pos)
-            print("Mouse moved above Play Board : " + str(indexes))
-            if self.PlayerStatus == Blokus.STATUS_InDraft:
-                self.drawPieceAbovePlayBoard(indexes)
+            if indexes != self.blockIndexesOnBoard:
+                self.blockIndexesOnBoard = indexes
+                #print("Mouse moved above Play Board : " + str(indexes))
+                if self.PlayerStatus == Blokus.STATUS_InDraft:
+                    print("Mouse moved above Play Board : " + str(indexes))
+                    self.board.resetTable4Display()
+                    piece = self.players[self.current_player_index].current_piece()
+                    self.board.updateDisplayTable(indexes, self.current_player_index, piece)
+                    self.drawPlayBoard()
+                    #print("self.board.table4display is " + str(self.board.table4display))
         
         
     def dealWithMouseRightDown(self, pos):
@@ -523,6 +565,7 @@ class BlokusPyGame(Blokus):
                    self.drawPieceInDraft(player, i)
                    # redraw player region
                    self.drawPlayerRegion(player)
+                   self.PlayerStatus = Blokus.STATUS_InDraft
                    print("Player " + str(player.index) + " selects the piece " + str(i) + " with variant " + str(player.pieces[i].curent_idx()) + " in Draft")
                break
     
