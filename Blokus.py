@@ -283,6 +283,8 @@ class Board:
     
     def validatePotentialPlacement(self, blockIndexes, player, piece2place : Piece) -> bool:
         # check if the piece can be placed on the board according to the rules of the game, which are:
+        if blockIndexes == (-1, -1) or piece2place == None:
+            return False
         x_ind = blockIndexes[0]
         y_ind = blockIndexes[1]
         dim_x = piece2place.current_shape()[0]
@@ -371,7 +373,6 @@ class BlokusPyGame(Blokus):
         
     def initGUI(self):
         pygame.init()
-        info_font = pygame.font.SysFont('timesnewroman',  30)
         screen_info = pygame.display.Info()
         # print(screen_info)
         self.dest_height = screen_info.current_h * 0.8
@@ -552,10 +553,11 @@ class BlokusPyGame(Blokus):
         info_font = pygame.font.SysFont('timesnewroman',  20)
         self.infoSurfaces = []
         for i in range(4):
-            info_surface = info_font.render("Player " + str(i) + " has " + str(len(self.players[i].remaining)) + " pieces and " + str(self.players[i].remaining_blocks) + " blocks remaining", True, self.players[i].color, COLORS['BLACK'])
+            info_surface = info_font.render("Player " + str(i) + " has " + str(len(self.players[i].remaining)) + " pieces and " + str(self.players[i].remaining_blocks) + " blocks remaining", True, self.players[i].color, COLORS['GRAY'])
             self.infoSurfaces.append(info_surface)
             self.window.blit(info_surface, (INFO_REGION_x, INFO_REGION_y+30*i))
-        self.infoSurface_player = info_font.render("Player " + str(self.current_player_index) + "'s turn", True, self.players[self.current_player_index].color, COLORS['BLACK'])
+        turn_font = pygame.font.SysFont('timesnewroman',  30)
+        self.infoSurface_player = turn_font.render("Player " + str(self.current_player_index) + "'s turn", True, self.players[self.current_player_index].color, COLORS['GRAY'])
         self.window.blit(self.infoSurface_player, (INFO_REGION_x, INFO_REGION_y+30*4))
     
     def dealWithMouseLeftDown(self, pos):
@@ -588,12 +590,32 @@ class BlokusPyGame(Blokus):
         if self.draftRegionRects[i].collidepoint(pos):
             # print("Player Draft " + str(i) + " is selected.")
             self.rotatePieceInDraft(self.players[i], -1)
+        if  self.playBoardRect.collidepoint(pos):
+            self.rotatePieceInDraft(self.players[i], -1)
+            indexes = self.getIndexOfBlockOnBoard(pos)
+            #print("Mouse moved above Play Board : " + str(indexes))
+            if self.PlayerStatus == Blokus.STATUS_InDraft:
+                print("Mouse moved above Play Board : " + str(indexes))
+                self.board.resetTable4Display()
+                piece = self.players[self.current_player_index].current_piece()
+                self.board.updateDisplayTable(indexes, self.current_player_index, piece)
+                self.drawPlayBoard()
 
     def dealWithMouseMiddleUp(self, pos):
         i = self.current_player_index
         if self.draftRegionRects[i].collidepoint(pos):
             # print("Player Draft " + str(i) + " is selected.")
             self.rotatePieceInDraft(self.players[i], 1)
+        if  self.playBoardRect.collidepoint(pos):
+            self.rotatePieceInDraft(self.players[i], 1)
+            indexes = self.getIndexOfBlockOnBoard(pos)
+            #print("Mouse moved above Play Board : " + str(indexes))
+            if self.PlayerStatus == Blokus.STATUS_InDraft:
+                print("Mouse moved above Play Board : " + str(indexes))
+                self.board.resetTable4Display()
+                piece = self.players[self.current_player_index].current_piece()
+                self.board.updateDisplayTable(indexes, self.current_player_index, piece)
+                self.drawPlayBoard()
     
     def dealWithMouseMotion(self, pos):
         if self.playBoardRect.collidepoint(pos):
@@ -608,7 +630,11 @@ class BlokusPyGame(Blokus):
                     self.board.updateDisplayTable(indexes, self.current_player_index, piece)
                     self.drawPlayBoard()
                     #print("self.board.table4display is " + str(self.board.table4display))
-        
+        else:
+            self.blockIndexesOnBoard = (-1, -1)
+            if self.PlayerStatus == Blokus.STATUS_InDraft:
+                self.board.resetTable4Display()
+                self.drawPlayBoard()
         
     def dealWithMouseRightDown(self, pos):
         pass
@@ -651,7 +677,51 @@ class BlokusPyGame(Blokus):
             piece.previous_variant()
         self.drawPieceInDraft(player, piece_index)
         print("Player " + str(player.index) + " selects the piece " + str(piece_index) + " with variant " + str(piece.curent_idx()))
-        
+
+    def saveGame(self):
+        with open('blokus_save.txt', 'w') as f:
+            # save current player index and player status
+            f.write(str(self.current_player_index) + ',' + str(self.PlayerStatus) + '\n')
+            # save the board table
+            for i in range(BOARD_NUM_x):
+                for j in range(BOARD_NUM_y):
+                    f.write(str(self.board.table[i][j]) + ',')
+                f.write('\n')
+            # save the players' pieces status and variant index
+            for player in self.players:
+                for piece in player.pieces:
+                    f.write(str(piece.status) + ',' + str(piece.curent_idx()) + '\n')
+        print("Game saved to blokus_save.txt")
+
+    def importGame(self):
+        try:
+            with open('blokus_save.txt', 'r') as f:
+                lines = f.readlines()
+                # load current player index and player status
+                current_player_index, PlayerStatus = map(int, lines[0].strip().split(','))
+                self.current_player_index = current_player_index
+                self.PlayerStatus = PlayerStatus
+                # load the board table
+                for i in range(BOARD_NUM_x):
+                    row = list(map(int, lines[i+1].strip().split(',')[:-1]))
+                    self.board.table[i] = row
+                self.board.resetTable4Display()
+                # load the players' pieces status and variant index
+                line_index = BOARD_NUM_x + 1
+                for player in self.players:
+                    for piece in player.pieces:
+                        status, variant_idx = map(int, lines[line_index].strip().split(','))
+                        piece.status = status
+                        piece._Piece__idx = variant_idx
+                        line_index += 1
+                    self.drawDraftRegion(player)
+                    self.drawPlayerRegion(player)
+                self.drawPlayBoard()
+                self.drawInfo()
+            print("Game imported from blokus_save.txt")
+        except Exception as e:
+            print("Failed to import game from blokus_save.txt : " + str(e))
+
     def run(self):
 
         while True:
@@ -665,6 +735,11 @@ class BlokusPyGame(Blokus):
                     self.drawInfo()
                 elif event.key == pygame.K_RETURN:
                     pass
+                elif event.mod & pygame.KMOD_LCTRL or event.mod & pygame.KMOD_RCTRL:
+                    if event.key == pygame.K_s:
+                        self.saveGame()
+                    elif event.key == pygame.K_i:
+                        self.importGame()
                 else:
                     pass
             elif event.type == pygame.KEYUP:
