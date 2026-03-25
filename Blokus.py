@@ -347,9 +347,15 @@ class Blokus(object):
         return self.players[index].color
 
     def nextPlayer(self):
+        for piece in self.players[self.current_player_index].pieces:
+            if piece.status == Piece.STATUS_InDraft:
+                piece.status = Piece.STATUS_InStock
         self.current_player_index += 1
         if self.current_player_index >= len(self.players):
             self.current_player_index = 0
+        self.PlayerStatus = Blokus.STATUS_InStock
+        self.board.resetTable4Display()
+        
 
 
 class BlokusPyGame(Blokus):
@@ -375,7 +381,7 @@ class BlokusPyGame(Blokus):
         pygame.init()
         screen_info = pygame.display.Info()
         # print(screen_info)
-        self.dest_height = screen_info.current_h * 0.8
+        self.dest_height = screen_info.current_h * 0.9
         self.scale = WINDOW_HEIGHT/self.dest_height
         self.dest_width = WINDOW_WIDTH/self.scale
         print("Display scale is " + str(self.scale))
@@ -732,6 +738,7 @@ class BlokusPyGame(Blokus):
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.nextPlayer()
+                    self.drawPlayBoard()
                     self.drawInfo()
                 elif event.key == pygame.K_RETURN:
                     pass
