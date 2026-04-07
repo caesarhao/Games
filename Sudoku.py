@@ -2,17 +2,17 @@ class Sudoku:
     def __init__(self):
         self.table = [[0 for i in range(9)] for j in range(9)]
     def initGame(self):
-        pass
+        self.table = [[0 for i in range(9)] for j in range(9)]
     def runGame(self):
         pass
 
 class SudokuTk(Sudoku):
     def __init__(self):
-        pass
+        super().__init__()
     def initGame(self):
-        pass
+        super().initGame()
     def runGame(self):
-        pass
+        super().runGame()
 
 if __name__ == '__main__':
     game = SudokuTk()
