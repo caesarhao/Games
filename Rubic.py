@@ -11,14 +11,18 @@ class Face(Enum):
     DOWN   =  5
 
 class Color(Enum):
-    N = 0
-    W = 
-    Y = 
-    G = 
+    N = (0, 0, 0)
+    W = (200, 200, 200)
+    R = (255, 0, 0)
+    G = (0, 255, 0)
+    B = (0, 0, 255)
+    O = (255, 165, 0)
+    Y = (255, 255, 0)
 
 class Cubie:
     def __init__(self, coor, colors):
         self.coord = coor.copy()
+        self.colors = colors.copy()
     
 class Rubic:
     def __init__(self, n = 3):
