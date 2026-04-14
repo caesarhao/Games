@@ -1,5 +1,16 @@
 # to learn Rubik Cube
+from enum import Enum
 
+# x-axis towards Front, y-axis towards Right, z-axis towards Up
+class Face(Enum):
+    UP     =  0
+    LEFT   =  1
+    FRONT  =  2
+    RIGHT  =  3
+    BACK   =  4
+    DOWN   =  5
+
+    
 class Rubic:
     def __init__(self, n = 3):
         self.N = n
@@ -14,6 +25,8 @@ class Rubic:
             return 6
     def numEdgeCubies(self) -> int:
         return self.numCubies() - self.numCornerCubies() - self.numCenterCubies()
+    def getFace(face : Face):
+        pass
 
 if __name__ == "__main__":
     rub = Rubic(3)
